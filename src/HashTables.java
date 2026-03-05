@@ -1,55 +1,37 @@
 import java.util.*;
 
-class UsernameAvailabilityChecker {
+class FlashSaleInventory {
 
-    private HashMap<String, Integer> usernameMap;
-    private HashMap<String, Integer> attemptFrequency;
+    private HashMap<String, Integer> stock;
+    private LinkedHashMap<String, Queue<Integer>> waitingList;
 
-    public UsernameAvailabilityChecker() {
-        usernameMap = new HashMap<>();
-        attemptFrequency = new HashMap<>();
+    public FlashSaleInventory() {
+        stock = new HashMap<>();
+        waitingList = new LinkedHashMap<>();
     }
 
-    public void registerUser(String username, int userId) {
-        usernameMap.put(username, userId);
+    public void addProduct(String productId, int quantity) {
+        stock.put(productId, quantity);
+        waitingList.put(productId, new LinkedList<>());
     }
 
-    public boolean checkAvailability(String username) {
-        attemptFrequency.put(username,
-                attemptFrequency.getOrDefault(username, 0) + 1);
-        return !usernameMap.containsKey(username);
+    public int checkStock(String productId) {
+        return stock.getOrDefault(productId, 0);
     }
 
-    public List<String> suggestAlternatives(String username) {
+    public synchronized String purchaseItem(String productId, int userId) {
 
-        List<String> suggestions = new ArrayList<>();
+        int currentStock = stock.getOrDefault(productId, 0);
 
-        suggestions.add(username + "1");
-        suggestions.add(username + "2");
-
-        if (username.contains("_")) {
-            suggestions.add(username.replace("_", "."));
-        } else {
-            suggestions.add(username + "_official");
+        if (currentStock > 0) {
+            stock.put(productId, currentStock - 1);
+            return "Success, " + (currentStock - 1) + " units remaining";
         }
-
-        return suggestions;
-    }
-
-    public String getMostAttempted() {
-
-        String mostAttempted = "";
-        int maxAttempts = 0;
-
-        for (Map.Entry<String, Integer> entry : attemptFrequency.entrySet()) {
-
-            if (entry.getValue() > maxAttempts) {
-                maxAttempts = entry.getValue();
-                mostAttempted = entry.getKey();
-            }
+        else {
+            Queue<Integer> queue = waitingList.get(productId);
+            queue.add(userId);
+            return "Added to waiting list, position #" + queue.size();
         }
-
-        return mostAttempted + " (" + maxAttempts + " attempts)";
     }
 }
 
@@ -57,25 +39,24 @@ public class HashTables {
 
     public static void main(String[] args) {
 
-        UsernameAvailabilityChecker checker = new UsernameAvailabilityChecker();
+        FlashSaleInventory inventory = new FlashSaleInventory();
 
-        checker.registerUser("john_doe", 101);
-        checker.registerUser("admin", 102);
+        inventory.addProduct("IPHONE15_256GB", 100);
 
-        System.out.println("checkAvailability(\"john_doe\") → "
-                + checker.checkAvailability("john_doe"));
+        System.out.println("checkStock(\"IPHONE15_256GB\") → "
+                + inventory.checkStock("IPHONE15_256GB") + " units available");
 
-        System.out.println("checkAvailability(\"jane_smith\") → "
-                + checker.checkAvailability("jane_smith"));
+        System.out.println("purchaseItem(\"IPHONE15_256GB\", 12345) → "
+                + inventory.purchaseItem("IPHONE15_256GB", 12345));
 
-        System.out.println("suggestAlternatives(\"john_doe\") → "
-                + checker.suggestAlternatives("john_doe"));
+        System.out.println("purchaseItem(\"IPHONE15_256GB\", 67890) → "
+                + inventory.purchaseItem("IPHONE15_256GB", 67890));
 
-        checker.checkAvailability("admin");
-        checker.checkAvailability("admin");
-        checker.checkAvailability("admin");
+        for (int i = 0; i < 98; i++) {
+            inventory.purchaseItem("IPHONE15_256GB", i);
+        }
 
-        System.out.println("getMostAttempted() → "
-                + checker.getMostAttempted());
+        System.out.println("purchaseItem(\"IPHONE15_256GB\", 99999) → "
+                + inventory.purchaseItem("IPHONE15_256GB", 99999));
     }
 }
