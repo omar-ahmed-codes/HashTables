@@ -1,80 +1,55 @@
 import java.util.*;
 
-class PlagiarismDetector {
+class AnalyticsDashboard {
 
-    private HashMap<String, Set<String>> ngramIndex;
-    private HashMap<String, List<String>> documentNgrams;
-    private int N = 5;
+    private HashMap<String, Integer> pageViews;
+    private HashMap<String, Set<String>> uniqueVisitors;
+    private HashMap<String, Integer> trafficSources;
 
-    public PlagiarismDetector() {
-        ngramIndex = new HashMap<>();
-        documentNgrams = new HashMap<>();
+    public AnalyticsDashboard() {
+        pageViews = new HashMap<>();
+        uniqueVisitors = new HashMap<>();
+        trafficSources = new HashMap<>();
     }
 
-    private List<String> generateNgrams(String text) {
+    public void processEvent(String url, String userId, String source) {
 
-        List<String> ngrams = new ArrayList<>();
-        String[] words = text.toLowerCase().split("\\s+");
+        pageViews.put(url, pageViews.getOrDefault(url, 0) + 1);
 
-        for (int i = 0; i <= words.length - N; i++) {
+        uniqueVisitors.putIfAbsent(url, new HashSet<>());
+        uniqueVisitors.get(url).add(userId);
 
-            StringBuilder sb = new StringBuilder();
-
-            for (int j = 0; j < N; j++) {
-                sb.append(words[i + j]);
-                if (j < N - 1) sb.append(" ");
-            }
-
-            ngrams.add(sb.toString());
-        }
-
-        return ngrams;
+        trafficSources.put(source, trafficSources.getOrDefault(source, 0) + 1);
     }
 
-    public void addDocument(String docId, String text) {
+    public void getDashboard() {
 
-        List<String> ngrams = generateNgrams(text);
-        documentNgrams.put(docId, ngrams);
+        PriorityQueue<Map.Entry<String, Integer>> pq =
+                new PriorityQueue<>((a, b) -> b.getValue() - a.getValue());
 
-        for (String gram : ngrams) {
-            ngramIndex.putIfAbsent(gram, new HashSet<>());
-            ngramIndex.get(gram).add(docId);
-        }
-    }
+        pq.addAll(pageViews.entrySet());
 
-    public void analyzeDocument(String docId) {
+        System.out.println("Top Pages:");
 
-        List<String> grams = documentNgrams.get(docId);
-        HashMap<String, Integer> matchCount = new HashMap<>();
+        int rank = 1;
 
-        for (String gram : grams) {
+        while (!pq.isEmpty() && rank <= 10) {
 
-            if (ngramIndex.containsKey(gram)) {
+            Map.Entry<String, Integer> entry = pq.poll();
+            String page = entry.getKey();
+            int views = entry.getValue();
+            int unique = uniqueVisitors.get(page).size();
 
-                for (String otherDoc : ngramIndex.get(gram)) {
+            System.out.println(rank + ". " + page + " - " + views +
+                    " views (" + unique + " unique)");
 
-                    if (!otherDoc.equals(docId)) {
-                        matchCount.put(otherDoc,
-                                matchCount.getOrDefault(otherDoc, 0) + 1);
-                    }
-                }
-            }
+            rank++;
         }
 
-        System.out.println("Extracted " + grams.size() + " n-grams");
+        System.out.println("\nTraffic Sources:");
 
-        for (Map.Entry<String, Integer> entry : matchCount.entrySet()) {
-
-            String otherDoc = entry.getKey();
-            int matches = entry.getValue();
-
-            double similarity = (matches * 100.0) / grams.size();
-
-            System.out.println("Found " + matches +
-                    " matching n-grams with \"" + otherDoc + "\"");
-
-            System.out.println("Similarity: " +
-                    String.format("%.1f", similarity) + "%");
+        for (Map.Entry<String, Integer> entry : trafficSources.entrySet()) {
+            System.out.println(entry.getKey() + " → " + entry.getValue());
         }
     }
 }
@@ -83,17 +58,15 @@ public class HashTables {
 
     public static void main(String[] args) {
 
-        PlagiarismDetector detector = new PlagiarismDetector();
+        AnalyticsDashboard dashboard = new AnalyticsDashboard();
 
-        String essay1 = "data structures and algorithms are important for computer science students learning programming concepts";
-        String essay2 = "data structures and algorithms are essential for students learning computer science programming";
-        String essay3 = "machine learning and artificial intelligence are transforming modern technology";
+        dashboard.processEvent("/article/breaking-news", "user_123", "google");
+        dashboard.processEvent("/article/breaking-news", "user_456", "facebook");
+        dashboard.processEvent("/sports/championship", "user_222", "google");
+        dashboard.processEvent("/sports/championship", "user_333", "direct");
+        dashboard.processEvent("/sports/championship", "user_444", "google");
+        dashboard.processEvent("/article/breaking-news", "user_789", "direct");
 
-        detector.addDocument("essay_089.txt", essay1);
-        detector.addDocument("essay_092.txt", essay2);
-        detector.addDocument("essay_123.txt", essay3);
-
-        System.out.println("analyzeDocument(\"essay_123.txt\")");
-        detector.analyzeDocument("essay_123.txt");
+        dashboard.getDashboard();
     }
 }
